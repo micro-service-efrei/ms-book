@@ -1,4 +1,6 @@
-const Book = require('../models/book');
+const Book = require("../models/book");
+const MessageQueue = require("../services/messageQueue");
+const messageQueue = new MessageQueue();
 
 // Ajouter un livre
 exports.createBook = async (req, res) => {
@@ -10,10 +12,14 @@ exports.createBook = async (req, res) => {
       author,
       categories,
       publishedDate: publishedDate ? new Date(publishedDate) : undefined,
-      description
+      description,
     });
 
     const savedBook = await newBook.save();
+
+    // Publier l'événement de création avec la bonne structure
+    await messageQueue.publishEvent("book.created", savedBook);
+
     res.status(201).json(savedBook);
   } catch (error) {
     console.error("Erreur lors de l'ajout du livre:", error);
@@ -29,6 +35,13 @@ exports.deleteBook = async (req, res) => {
     if (!deletedBook) {
       return res.status(404).json({ message: "Livre non trouvé" });
     }
+
+    // Publier l'événement de suppression avec la bonne structure
+    await messageQueue.publishEvent("book.deleted", {
+      id: deletedBook._id,
+      title: deletedBook.title,
+    });
+
     res.json({ message: "Livre supprimé avec succès" });
   } catch (error) {
     console.error("Erreur lors de la suppression du livre:", error);
@@ -39,15 +52,27 @@ exports.deleteBook = async (req, res) => {
 // Rechercher des livres
 exports.getBooks = async (req, res) => {
   try {
-    const { title, author, category } = req.query;
+    const { title, author, category, page = 1, limit = 10 } = req.query;
     const filter = {};
 
-    if (title) filter.title = { $regex: title, $options: 'i' };
-    if (author) filter.author = { $regex: author, $options: 'i' };
+    if (title) filter.title = { $regex: title, $options: "i" };
+    if (author) filter.author = { $regex: author, $options: "i" };
     if (category) filter.categories = { $in: [category] };
 
-    const books = await Book.find(filter);
-    res.json(books);
+    const total = await Book.countDocuments(filter);
+    const books = await Book.find(filter)
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .sort({ createdAt: -1 });
+
+    res.json({
+      books,
+      pagination: {
+        total,
+        page: Number(page),
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error("Erreur lors de la recherche des livres:", error);
     res.status(500).json({ message: "Erreur interne du serveur" });
@@ -59,7 +84,7 @@ exports.updateBook = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, author, categories, publishedDate, description } = req.body;
-    
+
     const updated = await Book.findByIdAndUpdate(
       id,
       { title, author, categories, publishedDate, description },
@@ -69,6 +94,9 @@ exports.updateBook = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ message: "Livre non trouvé" });
     }
+
+    // Publier l'événement de mise à jour avec la bonne structure
+    await messageQueue.publishEvent("book.updated", updated);
 
     res.json(updated);
   } catch (error) {

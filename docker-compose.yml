@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    environment:
+      - PORT=3001
+      - MONGO_URI=mongodb://mongo:27017/mylibrary
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    networks:
+      - book-network
+      - ms-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Waiting for MongoDB...' &&
+        while ! nc -z mongo 27017; do sleep 1; done &&
+        echo 'Waiting for RabbitMQ...' &&
+        while ! nc -z rabbitmq 5672; do sleep 1; done &&
+        echo 'Starting application...' &&
+        node server.js
+      "
+    healthcheck:
+      test: curl -f http://localhost:3001/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  mongo:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - book-network
+      - ms-network
+    command: --quiet
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      book-network:
+        aliases:
+          - rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  book-network:
+    external: true
+    name: book-network
+  ms-network:
+    external: true
+
+volumes:
+  mongo-data:
+  rabbitmq-data:

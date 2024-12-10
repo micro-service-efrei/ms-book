@@ -5,22 +5,9 @@ const messageQueue = new MessageQueue();
 // Ajouter un livre
 exports.createBook = async (req, res) => {
   try {
-    const { title, author, categories, publishedDate, description } = req.body;
-
-    const newBook = new Book({
-      title,
-      author,
-      categories,
-      publishedDate: publishedDate ? new Date(publishedDate) : undefined,
-      description,
-    });
-
-    const savedBook = await newBook.save();
-
-    // Publier l'événement de création avec la bonne structure
-    await messageQueue.publishEvent("book.created", savedBook);
-
-    res.status(201).json(savedBook);
+    const book = await Book.create(req.body);
+    await messageQueue.publishEvent("book.created", book);
+    res.status(201).json(book);
   } catch (error) {
     console.error("Erreur lors de l'ajout du livre:", error);
     res.status(500).json({ message: "Erreur interne du serveur" });

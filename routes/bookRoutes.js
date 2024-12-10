@@ -2,16 +2,19 @@ const express = require('express');
 const router = express.Router();
 const bookController = require('../controllers/bookController');
 const MessageQueue = require('../services/messageQueue');
+const authMiddleware = require('../middleware/auth');
 const messageQueue = new MessageQueue();
 
-// Routes CRUD
-router.post('/', bookController.createBook);
-router.get('/', bookController.getBooks);
-router.put('/:id', bookController.updateBook);
-router.delete('/:id', bookController.deleteBook);
+// Route publique
+router.get(['/', '/books'], bookController.getBooks);
 
-// Route de test pour les événements
-router.post('/test-event', async (req, res) => {
+// Routes protégées
+router.post(['/', '/books'], authMiddleware, bookController.createBook);
+router.put(['/:id', '/books/:id'], authMiddleware, bookController.updateBook);
+router.delete(['/:id', '/books/:id'], authMiddleware, bookController.deleteBook);
+
+// Route de test
+router.post('/test-event', authMiddleware, async (req, res) => {
   try {
     const testData = {
       id: 'test-' + Date.now(),

@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  app:
+  ms-book:
     build: .
     ports:
       - "3001:3001"
@@ -14,6 +14,9 @@ services:
       - PORT=3001
       - MONGO_URI=mongodb://mongo:27017/mylibrary
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - MONGODB_URI=mongodb://mongo:27017/ms-book
+      - JWT_SECRET=123456 # S'assurer que c'est la même que ms-auth
+      - NODE_ENV=development
     networks:
       - book-network
       - ms-network

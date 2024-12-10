@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -16,7 +17,7 @@ connectDB();
 // Utilisation des routes
 app.use('/books', bookRoutes);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT; 
 app.listen(PORT, () => {
   console.log(`Serveur en cours d'exécution sur le port ${PORT}`);
 });

@@ -4,6 +4,8 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const bookRoutes = require("./routes/bookRoutes");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
 
 const app = express();
 
@@ -17,6 +19,10 @@ if (!process.env.JWT_SECRET) {
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+
+// Documentation Swagger - DOIT ÊTRE AVANT LES AUTRES ROUTES
+app.use('/api-docs', swaggerUi.serve);
+app.get('/api-docs', swaggerUi.setup(swaggerSpec));
 
 // Log des requêtes pour le débogage
 app.use((req, res, next) => {
